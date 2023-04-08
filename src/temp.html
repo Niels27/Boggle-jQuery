@@ -7,9 +7,19 @@
     <title><%= htmlWebpackPlugin.options.title %></title>
     <link rel="stylesheet" href="src/main.css"></link>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="src/app.js"></script>
 </head>
 <body>
-    <h1>Boggle</h1>
-    <script src="src/app.js">  </script>
+    
+    <h1 id="title">Boggle</h1>
+    <table id="boggle-board"></table>
+	<button id="submit-btn" class="btn" >Submit</button>
+    <button id="reset-btn" class="btn" >Reset</button>
+	<div id="scoreboard">Scoreboard <br> </div>
+	<div id="countdown">Time: 3:00</div>
+	<div id="score">Score: 0</div>
+	<div id="foundwords">Words found: <br>  </div>
+   
 </body>
 </html>
