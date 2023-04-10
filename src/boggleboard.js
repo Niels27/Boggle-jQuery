@@ -1,4 +1,0 @@
-
-
-  export {generateBoard,word}
-  
