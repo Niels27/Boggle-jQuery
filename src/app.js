@@ -9,7 +9,7 @@ let lastClickedCell;
 let currentCell;
 let totalScore = 0;
 let currentScore = 0;
-let gameTime = 300;
+let gameTime = 180;
 let playerName = "unkown";
 const date = new Date();
 let day = date.getDate();
