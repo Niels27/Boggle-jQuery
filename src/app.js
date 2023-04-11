@@ -3,13 +3,12 @@ import style from './main.css'
 //variables
 let word = "";
 let timerOn = false;
-let entryNr = 1;
-let boardNr = "0";
+let intervalId = "";
 let lastClickedCell;
 let currentCell;
 let totalScore = 0;
 let currentScore = 0;
-let gameTime = 180;
+let gameTime = 10; //should be 180
 let playerName = "unkown";
 const date = new Date();
 let day = date.getDate();
@@ -19,11 +18,52 @@ let isValid;
 let boggleBoard;
 let letters = []
 let words = []
+let boggleBoards = [];
+
+//get html elements using jquery
+const submitButton = $("#submit-btn");
+const resetButton = $("#reset-btn");
+const startButton = $("#start-btn");
+const loadButton = $("#load-btn");
+const btn = $(".btn");
+const foundwords = $("#foundwords");
+let score = $("#score");
+let scoreboard = $("#scoreboard");
+let timer = $("#timer");
+let board = $("#board");
+let cells = $("td");
+let title = $("#title");
+
+//css styles using jquery
+$("#score,#timer,#submit-btn,#foundwords,#scoreboard").css({
+    "display": "inline-block", "position": "relative"
+});
+$("#foundwords,#scoreboard").css({ "float": "right", "margin-top": "100px" });
 
 //get 16 shuffled letters and generate a board with them
 function getBoard() {
     $.ajax({
         url: "https://localhost:5000/api/Boggle/GetBoggleBoard",
+        type: 'GET',
+        contentType: "application/json",
+        dataType: 'json'
+    }
+    ).done(function (data, textStatus, jqXHR) {
+        boggleBoard = data;
+        console.log(boggleBoard.boggleBoardId);
+        generateBoard(boggleBoard); //puts the letters in clickable cells, which simulates a boggle board
+
+    }).fail(function (jqXHR, textStatus, errorThrown) {
+        console.log("Error: " + textStatus + "\t" + errorThrown.toString());
+    });
+}
+
+//get specific previously played board by id
+function getOldBoard(oldBoggleBoardId) {
+
+    let id = oldBoggleBoardId;
+    $.ajax({
+        url: "https://localhost:5000/api/Boggle/GetBoggleBoard" + id,
         type: 'GET',
         contentType: "application/json",
         dataType: 'json'
@@ -41,7 +81,6 @@ function getBoard() {
 function isValidWord() {
 
     let id = boggleBoard.boggleBoardId;
-    console.log(id)
     $.ajax({
         url: "https://localhost:5000/api/Boggle/IsValidWord/" + id + "/" + word,
         type: 'GET',
@@ -88,35 +127,9 @@ function scoreWord() {
     });
 }
 
-//jQuery
-// $(document).ready(function () {
-
-// generateBoard();
-
-//get html elements using jquery
-const submitButton = $("#submit-btn");
-const resetButton = $("#reset-btn");
-const startButton = $("#start-btn");
-const btn = $(".btn");
-const foundwords = $("#foundwords");
-let score = $("#score");
-let scoreboard = $("#scoreboard");
-let timer = $("#timer");
-let board = $("#board");
-let cells = $("td");
-let title = $("#title");
-
-//css styles using jquery
-$("#score,#timer,#submit-btn,#foundwords,#scoreboard").css({
-    "display": "inline-block", "position": "relative"
-});
-$("#foundwords,#scoreboard").css({ "float": "right", "margin-top": "100px" });
-
-
 //click handlers for the buttons
 //submit button
 submitButton.click(function () {
-    //if a word has been made, submit it
     if (word.length > 0) {
         submitWord();
     }
@@ -128,6 +141,20 @@ startButton.click(function () {
 //reset button
 resetButton.click(function () {
     reset();
+})
+//load button
+loadButton.click(function () {
+     //ask for board Id and check if entered Id is valid
+     const pattern = /^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){4}[0-9a-fA-F]{8}$/i;
+     let oldBoggleBoardId = prompt("Please enter board Id");
+     if (pattern.test(oldBoggleBoardId)) {
+         resetGame(); //reset the current game
+         getOldBoard(oldBoggleBoardId); //generate new board with the old board Id
+         startTimer(gameTime);
+     } else {
+         alert("Not valid Id!");
+     }
+   
 })
 
 //when submitting a word check if word is valid 
@@ -152,14 +179,18 @@ function submitWord() {
 
 }
 
-//start a game
+//start a game if none is ongoing, otherwise reset current game before starting a new one
 function start() {
     if (!timerOn) {
 
+        startTimer(gameTime); //start timer 
         getBoard();
-        startTimer(gameTime); //start timer     
-    }
 
+    }
+    else {
+        resetGame();
+        start();
+    }
 }
 
 //remove player input from board
@@ -172,7 +203,7 @@ function reset() {
 
 //generates boggle board
 function generateBoard(_boggleBoard) {
-    //update the board
+    
 
     // Define the letters for the Boggle board
     // const letters = [
@@ -247,24 +278,27 @@ function addClickEvents() {
 //starts the countdown timer
 function startTimer(_totalSeconds) {
 
+    timerOn = true
     let totalSeconds = _totalSeconds;
-    let countdown = setInterval(function () {
-        timerOn = true
+
+    intervalId = setInterval(function () {
+
+
         if (totalSeconds === 0) {
             if (timerOn) {
 
                 timerOn = false;
                 finishGame();
             }
-                clearInterval(countdown);
-            } else {
-                let minutes = Math.floor(totalSeconds / 60);
-                let seconds = totalSeconds % 60;
-                totalSeconds--;
-               
-                timer.text("Time: "+ `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`);
-            }
-        }, 1000);
+            clearInterval(intervalId);
+        } else {
+            let minutes = Math.floor(totalSeconds / 60);
+            let seconds = totalSeconds % 60;
+            totalSeconds--;
+
+            timer.text("Time: " + `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`);
+        }
+    }, 1000);
 
 }
 
@@ -272,10 +306,29 @@ function startTimer(_totalSeconds) {
 function finishGame() {
 
     alert('time is up!');
-    //ask for player name and enter it in scoreboard along with their score and the letters of that board
-    playerName = prompt("Please enter your name")
-    scoreboard.append("<br>" + entryNr.toString() + ". " + playerName + " scored " + totalScore + " points on " + `${day}-${month}-${year}`);
-    entryNr++;
+
+    //add current board to board list 
+    boggleBoards.push(boggleBoard);
+
+    // prompt for player name and create an anchor element with the name as the text content
+    playerName = prompt("Please enter your name");
+
+    //count amount of entries in scoreboard
+    let entryCount = $("#scoreboard").find(".score-entry").length + 1;
+
+    // create the scoreboard entry as a span element with a class name
+    const entry = $("<span>").addClass('score-entry').html("<br>" + entryCount.toString() + ". " + playerName +
+        " scored " + totalScore + " points on " + `${day}-${month}-${year}`)
+
+
+    // add an event listener to the entry span element to alert the full entry string when clicked
+    entry.on('click', () => {
+
+        loadOldBoard(entryCount)
+    });
+
+    // append the entry to the scoreboard element
+    scoreboard.append(entry);
 
     //remove the board
     reset();
@@ -290,6 +343,32 @@ function finishGame() {
     foundwords.html("Words found:");
     words = []
     letters = []
+
+    //reset timer
+    timerOn = false
+    clearInterval(intervalId);
+}
+//restart the board with new letters
+function resetGame() {
+
+    //remove the board
+    reset();
+    $("#board tr").remove();
+
+    //reset score 
+    totalScore = 0;
+    currentScore = 0;
+    score.text("Score: " + totalScore.toString());
+
+    //empty the lists
+    foundwords.html("Words found:");
+    words = []
+    letters = []
+
+    //reset the timer
+    timerOn = false
+    clearInterval(intervalId);
+
 }
 //calculate score of last entered word based on official boggle rules
 function calculateTotalScore(_currentScore) {
@@ -305,11 +384,15 @@ function calculateTotalScore(_currentScore) {
     totalScore += _currentScore;
     score.text("Score: " + totalScore.toString());
 }
+//load an older board
+function loadOldBoard(_boardNr) {
+
+    //restart the board and get the old board 
+    resetGame();
+    startTimer(gameTime);
+    getOldBoard(boggleBoards[_boardNr - 1].boggleBoardId);
+
+}
 
 
 
-
-
-
-
-// })
