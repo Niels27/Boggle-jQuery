@@ -1,19 +1,17 @@
+//dependencies
 import style from './main.css'
 
 //variables
-let word = "";
+let currentWord = "";
 let timerOn = false;
 let intervalId = "";
 let lastClickedCell;
 let currentCell;
 let totalScore = 0;
 let currentScore = 0;
-let gameTime = 10; //should be 180
+let gameTime = 60; //should be 180
 let playerName = "unkown";
-const date = new Date();
-let day = date.getDate();
-let month = date.getMonth() + 1;
-let year = date.getFullYear();
+
 let isValid;
 let boggleBoard;
 let letters = []
@@ -26,7 +24,7 @@ const resetButton = $("#reset-btn");
 const startButton = $("#start-btn");
 const loadButton = $("#load-btn");
 const btn = $(".btn");
-const foundwords = $("#foundwords");
+const foundWordsBox = $("#foundWordsBox");
 let score = $("#score");
 let scoreboard = $("#scoreboard");
 let timer = $("#timer");
@@ -35,10 +33,30 @@ let cells = $("td");
 let title = $("#title");
 
 //css styles using jquery
-$("#score,#timer,#submit-btn,#foundwords,#scoreboard").css({
+$("#score,#timer,#submit-btn,#foundWordsBox,#scoreboard").css({
     "display": "inline-block", "position": "relative"
 });
-$("#foundwords,#scoreboard").css({ "float": "right", "margin-top": "100px" });
+$("#foundWordsBox,#scoreboard").css({ "float": "right", "margin-top": "100px" });
+
+//click handlers for the buttons
+//submit button
+submitButton.click(function () {
+    if (currentWord.length > 0) {
+        submitWord();
+    }
+})
+//start button
+startButton.click(function () {
+    start();
+})
+//reset button
+resetButton.click(function () {
+    resetInput();
+})
+//load button
+loadButton.click(function () {
+    loadGameById()
+})
 
 //get 16 shuffled letters and generate a board with them
 function getBoard() {
@@ -51,7 +69,7 @@ function getBoard() {
     ).done(function (data, textStatus, jqXHR) {
         boggleBoard = data;
         console.log(boggleBoard.boggleBoardId);
-        generateBoard(boggleBoard); //puts the letters in clickable cells, which simulates a boggle board
+        generateBoard(boggleBoard);
 
     }).fail(function (jqXHR, textStatus, errorThrown) {
         console.log("Error: " + textStatus + "\t" + errorThrown.toString());
@@ -70,7 +88,7 @@ function getOldBoard(oldBoggleBoardId) {
     }
     ).done(function (data, textStatus, jqXHR) {
         boggleBoard = data;
-        generateBoard(boggleBoard); //puts the letters in clickable cells, which simulates a boggle board
+        generateBoard(boggleBoard);
 
     }).fail(function (jqXHR, textStatus, errorThrown) {
         console.log("Error: " + textStatus + "\t" + errorThrown.toString());
@@ -82,7 +100,7 @@ function isValidWord() {
 
     let id = boggleBoard.boggleBoardId;
     $.ajax({
-        url: "https://localhost:5000/api/Boggle/IsValidWord/" + id + "/" + word,
+        url: "https://localhost:5000/api/Boggle/IsValidWord/" + id + "/" + currentWord,
         type: 'GET',
         contentType: "application/json",
         dataType: 'json'
@@ -92,15 +110,15 @@ function isValidWord() {
 
         if (isValid) { //if submitted word is valid
             //add the word to found words list
-            words.push(word);
-            foundwords.append("<br>", word);
+            words.push(currentWord);
+            foundWordsBox.append("<br>", currentWord);
             scoreWord(); //get score of that word
-            word = ""; //reset the word
+            currentWord = ""; //reset the word
         }
 
         else {
             alert('Word not valid!');
-            word = ""; //reset the word
+            currentWord = ""; //reset the word
         }
 
     }).fail(function (jqXHR, textStatus, errorThrown) {
@@ -108,6 +126,7 @@ function isValidWord() {
     });
 
 }
+
 
 //calculate and get the score based on word length, then calculate total score
 function scoreWord() {
@@ -120,48 +139,18 @@ function scoreWord() {
     }
     ).done(function (data, textStatus, jqXHR) {
         currentScore = data;
-        calculateTotalScore(currentScore); // calculate total score
+        calculateTotalScore(currentScore);
 
     }).fail(function (jqXHR, textStatus, errorThrown) {
         console.log("Error: " + textStatus + "\t" + errorThrown.toString());
     });
 }
 
-//click handlers for the buttons
-//submit button
-submitButton.click(function () {
-    if (word.length > 0) {
-        submitWord();
-    }
-})
-//start button
-startButton.click(function () {
-    start();
-})
-//reset button
-resetButton.click(function () {
-    reset();
-})
-//load button
-loadButton.click(function () {
-     //ask for board Id and check if entered Id is valid
-     const pattern = /^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){4}[0-9a-fA-F]{8}$/i;
-     let oldBoggleBoardId = prompt("Please enter board Id");
-     if (pattern.test(oldBoggleBoardId)) {
-         resetGame(); //reset the current game
-         getOldBoard(oldBoggleBoardId); //generate new board with the old board Id
-         startTimer(gameTime);
-     } else {
-         alert("Not valid Id!");
-     }
-   
-})
-
-//when submitting a word check if word is valid 
+//when submitting a word check if word is valid, and handle what happens when its not
 function submitWord() {
 
-    if (word.length > 2) { //check word length so that we can alert the player in case its too short
-        if (!words.includes(word)) { //make sure the word is not already entered
+    if (currentWord.length > 2) { //check word length so that we can alert the player in case its too short
+        if (!words.includes(currentWord)) { //make sure the word is not already entered
 
             isValidWord()
 
@@ -170,7 +159,7 @@ function submitWord() {
         }
     } else {
         alert('The word should be 3 characters or longer!');
-        word = ""; //reset the word
+        currentWord = ""; //reset the word
     }
     //remove player input from board 
     cells.removeClass("clicked");
@@ -194,16 +183,16 @@ function start() {
 }
 
 //remove player input from board
-function reset() {
+function resetInput() {
     cells.removeClass("clicked");
-    word = "";
+    currentWord = "";
     lastClickedCell = undefined;
     currentCell = undefined;
 }
 
 //generates boggle board
 function generateBoard(_boggleBoard) {
-    
+
 
     // Define the letters for the Boggle board
     // const letters = [
@@ -241,7 +230,6 @@ function generateBoard(_boggleBoard) {
 
     //add click events to each cell
     addClickEvents();
-
 }
 
 function addClickEvents() {
@@ -254,15 +242,15 @@ function addClickEvents() {
         currentCell = $(this);
         // Check if clicked cell is adjacent to last clicked cell
         if (lastClickedCell === undefined ||
-            Math.abs(rowIndex - lastClickedCell.rowIndex) <= 1 &&
-            Math.abs(colIndex - lastClickedCell.colIndex) <= 1) {
-            // Allow click
-            lastClickedCell = { rowIndex: rowIndex, colIndex: colIndex };
+            Math.abs(rowIndex - lastClickedCell.rowIndex) <= 1 && //make sure you can only ''move'' in steps of 1 horizontally
+            Math.abs(colIndex - lastClickedCell.colIndex) <= 1) {//make sure you can only ''move'' in steps of 1 vertically
+           
+            lastClickedCell = { rowIndex: rowIndex, colIndex: colIndex }; //update lastclickedcell to values of current cell
             //check if user is not clicking on previous cell
             if (!(currentCell.hasClass("clicked"))) {
-                word += currentCell.text(); // append the clicked letter to the word
+                currentWord += currentCell.text(); // append the clicked letter to the word
                 currentCell.addClass("clicked"); // add the "clicked" class to the cell
-                console.log(word); // log the updated word to the console
+                console.log(currentWord); // log the updated word to the console
             }
             else {
                 alert("You can't click same letter twice!");
@@ -305,12 +293,17 @@ function startTimer(_totalSeconds) {
 //deletes old board, generates new one, ask player to enter name for scoreboard
 function finishGame() {
 
-    alert('time is up!');
+    //current dates for leaderboard entry
+    const date = new Date();
+    let day = date.getDate();
+    let month = date.getMonth() + 1;
+    let year = date.getFullYear();
 
     //add current board to board list 
     boggleBoards.push(boggleBoard);
 
-    // prompt for player name and create an anchor element with the name as the text content
+    // prompt for player name and create an element with the name as the text content
+    alert('time is up!');
     playerName = prompt("Please enter your name");
 
     //count amount of entries in scoreboard
@@ -319,7 +312,6 @@ function finishGame() {
     // create the scoreboard entry as a span element with a class name
     const entry = $("<span>").addClass('score-entry').html("<br>" + entryCount.toString() + ". " + playerName +
         " scored " + totalScore + " points on " + `${day}-${month}-${year}`)
-
 
     // add an event listener to the entry span element to alert the full entry string when clicked
     entry.on('click', () => {
@@ -331,7 +323,7 @@ function finishGame() {
     scoreboard.append(entry);
 
     //remove the board
-    reset();
+    resetInput();
     $("#board tr").remove();
 
     //reset score 
@@ -340,7 +332,7 @@ function finishGame() {
     score.text("Score: " + totalScore.toString());
 
     //empty the lists
-    foundwords.html("Words found:");
+    foundWordsBox.html("Words found:");
     words = []
     letters = []
 
@@ -352,7 +344,7 @@ function finishGame() {
 function resetGame() {
 
     //remove the board
-    reset();
+    resetInput();
     $("#board tr").remove();
 
     //reset score 
@@ -361,7 +353,7 @@ function resetGame() {
     score.text("Score: " + totalScore.toString());
 
     //empty the lists
-    foundwords.html("Words found:");
+    foundWordsBox.html("Words found:");
     words = []
     letters = []
 
@@ -373,7 +365,7 @@ function resetGame() {
 //calculate score of last entered word based on official boggle rules
 function calculateTotalScore(_currentScore) {
 
-    // let wordLength = word.length;
+    // let wordLength = currentWord.length;
     // currentScore = 0;
     // if (wordLength == 3 || wordLength == 4) { currentScore = 1 }
     // else if (wordLength == 5) { currentScore = 2 }
@@ -392,6 +384,19 @@ function loadOldBoard(_boardNr) {
     startTimer(gameTime);
     getOldBoard(boggleBoards[_boardNr - 1].boggleBoardId);
 
+}
+function loadGameById() {
+
+    //ask for board Id and check if entered Id is valid
+    const pattern = /^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){4}[0-9a-fA-F]{8}$/i;
+    let oldBoggleBoardId = prompt("Please enter board Id");
+    if (pattern.test(oldBoggleBoardId)) {
+        resetGame(); //reset the current game
+        getOldBoard(oldBoggleBoardId); //generate new board with the old board Id
+        startTimer(gameTime);
+    } else {
+        alert("Not valid Id!");
+    }
 }
 
 
